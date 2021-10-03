@@ -1,5 +1,6 @@
 const express			= require('express');
 const session			= require('express-session');
+const debug       = require('debug');
 const hbs				= require('express-handlebars');
 const mongodb           = require('mongodb');
 const MongoClient       = mongodb.MongoClient;
@@ -12,6 +13,8 @@ const app				= express();
 const uri = 'mongodb+srv://carlosavp23:CAVPadmin@cluster0.j8unn.mongodb.net/a3_persistence?retryWrites=true&w=majority';
 const client = new MongoClient(uri, { useNewUrlParser: true });
 var port = process.env.PORT || 5000;
+var collection = null
+var users = null
 
 mongoose.connect( uri, {
 	useNewUrlParser: true,
@@ -36,8 +39,10 @@ const User = mongoose.model('User', UserSchema);
 // Middleware
 app.engine('hbs', hbs({ extname: '.hbs' }));
 app.set('view engine', 'hbs');
-app.use(express.static(path.join(__dirname + '/public')));
-app.set('Views', path.join(__dirname, 'Views'));
+app.use('/Public', express.static('Public'))
+app.use('/Views', express.static('Views'))
+app.set('views', './Views');
+
 app.use(session({
 	secret: "verygoodsecret",
 	resave: false,
@@ -46,10 +51,18 @@ app.use(session({
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-client.connect(err => {
-    collection = client.db("a3_persistence").collection("JobLog");
-     users = client.db("a3_persistence").collection("User");
+ client.connect(err => {
+  collection = client.db("a3_persistence").collection("JobLog");
+    users = client.db("a3_persistence").collection("User");
  });
+
+/*client.connect( function(err, client) {
+  if (err) throw err;
+  console.log("Connected successfully to server");
+  var collection = client.db("a3_persistence").collection("JobLog");
+  var users = client.db("a3_persistence").collection("User");
+  client.close();
+});*/
 
 // Passport.js
 app.use(passport.initialize());
@@ -82,6 +95,7 @@ passport.use(new localStrategy(function (username, password, done) {
 function isLoggedIn(req, res, next) {
 	if (req.isAuthenticated()) return next();
 	res.redirect('/login');
+
 }
 
 function isLoggedOut(req, res, next) {
@@ -130,9 +144,9 @@ app.get('/setup', async (req, res) => {
 		return;
 	};
 
-	bcrypt.genSalt(10, function (err, salt) {
+	bcrypt.genSalt(10, function (err, salt, next) {
 		if (err) return next(err);
-		bcrypt.hash("pass", salt, function (err, hash) {
+		bcrypt.hash("pass", salt, function (err, hash, next) {
 			if (err) return next(err);
 			
 			const newAdmin = new User({
